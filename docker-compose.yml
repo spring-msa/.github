@@ -1,0 +1,79 @@
+version: "3.8"
+
+name: twitter-clone
+
+services:
+  database:
+    image: mariadb:latest
+    restart: always
+    environment:
+      # if production mode, change the root password
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: twitter_clone
+      TZ: "Asia/Seoul"
+    ports:
+      - "3306:3306"
+  
+  minio:
+    image: minio/minio:latest
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      # if production mode, change the root password
+      MINIO_ROOT_USER: root_minio
+      MINIO_ROOT_PASSWORD: root_minio
+    command: server /data --console-address ":9001"
+  
+  # ELK Stack (Elasticsearch, Logstash, Kibana)
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.14.2
+    ports:
+      - "9200:9200" # HTTP
+      - "9300:9300" # Internal communication
+    environment:
+      - discovery.type=single-node # disable clustering
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - ELASTIC_PASSWORD=changeme
+  
+  logstash:
+    image: logstash:8.14.3
+    ports:
+      - "5044:5044"
+      - "9600:9600"
+    environment:
+      - "ELASTICSEARCH_HOSTS=elasticsearch:9200"
+      - "ELASTICSEARCH_USERNAME=elastic"
+      - "ELASTICSEARCH_PASSWORD=changeme"
+
+  
+  # Spring Cloud Config Server
+  spring-config:
+    image: cmsong111/spring-cloud-config-server:0.0.1
+    ports:
+      - "8888:8888"
+    environment:
+      - HOST_URL=http://spring-config
+      - PORT=8888
+      - BOOT_ADMIN_URL=http://spring-boot-admin
+      - PORT_ADMIN=9090
+
+  # Spring Cloud Eureka Server
+  spring-eureka:
+    image: cmsong111/spring-cloud-eureka-server:0.0.1
+    ports:
+      - "8761:8761"
+    environment:
+      - SPRING_CONFIG_SERVER=http://spring-config
+
+  # Spring Boot Admin Server
+  spring-boot-admin:
+    image: cmsong111/spring-boot-admin-server:0.0.1
+    ports:
+      - "9090:9090"
+
+  # User Spring Application
+  user-service:
+    image: cmsong111/user-service:0.0.1-SNAPSHOT
+    environment:
+      - SPRING_CONFIG_SERVER=http://spring-config

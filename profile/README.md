@@ -1,1 +1,2 @@
-# Spring Cloud 환경 구축 프로젝트
+# Spring Cloud를 활용한 트위터 클론 프로젝트
+
